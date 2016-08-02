@@ -39,11 +39,24 @@ object MainApplication extends App{
     )
   )
 
+
+  val watcher2: ActorRef = system.actorOf(
+    Props(
+      new FileWatcher(
+        Paths.get(
+          conf.watcher2.location.as[String]
+        )
+      )
+    )
+  )
+
+
+
   def when(events: Event*)(callback: Callback): Message = {
     Message.RegisterCallback(events.distinct, callback)
   }
 
-  watcher ! when(events = ENTRY_CREATE, ENTRY_MODIFY, ENTRY_DELETE){
+  def callback(googleParent: String): Callback = {
     case (ENTRY_CREATE, file) =>
       println(s"$file got created")
 
@@ -54,7 +67,7 @@ object MainApplication extends App{
         None,
         None,
         Some(
-          List(conf.watcher.googleID.as[String])
+          List(googleParent)
         ),
         Some(gFileContent( file.path.toAbsolutePath.toString , "text/plain"))
       )
@@ -64,5 +77,8 @@ object MainApplication extends App{
     case (ENTRY_MODIFY, file) => println(s"$file got modified")
     case (ENTRY_DELETE, file) => println(s"$file got deleted")
   }
+
+  watcher ! when(events = ENTRY_CREATE, ENTRY_MODIFY, ENTRY_DELETE)(callback(conf.watcher.googleID.as[String]))
+  watcher2 ! when(events = ENTRY_CREATE, ENTRY_MODIFY, ENTRY_DELETE)(callback(conf.watcher2.googleID.as[String]))
 
 }
